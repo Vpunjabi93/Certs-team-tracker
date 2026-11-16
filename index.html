@@ -197,12 +197,8 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
     <div class="login-mark"><span>C</span><h1>Certs Team Tracker</h1></div>
     <p class="sub">Daily tasks for the Management Certs team.</p>
     <div class="field">
-      <label for="who">Who's signing in</label>
-      <select id="who" required>
-        <option value="" disabled selected>Choose your name</option>
-        <option>Veenu</option><option>Zil</option><option>Sovan</option><option>Tapan</option>
-        <option value="Lead">Team lead</option>
-      </select>
+      <label for="email">Work email</label>
+      <input type="email" id="email" autocomplete="username" inputmode="email" spellcheck="false" required>
     </div>
     <div class="field">
       <label for="pw">Team password</label>
@@ -256,7 +252,7 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
 
 <script>
 (function () {
-  const OWNERS = ["Veenu", "Zil", "Sovan", "Tapan"];
+  let OWNERS = [];
   const DATA_URL = "data.enc.json";
 
   // ---------- storage helpers ----------
@@ -292,7 +288,7 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
   }
 
   // ---------- state ----------
-  let snapshot = null, me = null, mode = "team";
+  let snapshot = null, me = null, meUser = null, mode = "team";
   const state = { programmes: new Map(), tasks: new Map() };
   let children = new Map();
   let filter = "All", hideDone = ls.get("ct-hide") === "1", openAdd = null, confirmRm = null, selDay = null;
@@ -622,7 +618,7 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
   function showApp() {
     document.getElementById("login-view").hidden = true;
     document.getElementById("app").hidden = false;
-    document.getElementById("me-name").textContent = me === "Lead" ? "Team lead" : me;
+    document.getElementById("me-name").textContent = me;
     if (snapshot.updated) {
       const d = new Date(snapshot.updated);
       document.getElementById("snap-time").textContent = "Snapshot " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -632,9 +628,15 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
     rebuild(); render();
   }
   async function trySignIn(who, pass, remember) {
-    try { snapshot = await decrypt(pass); }
+    let data;
+    try { data = await decrypt(pass); }
     catch (e) { return e && e.message === "fetch" ? "fetch" : "bad"; }
-    me = who;
+    const email = String(who || "").trim().toLowerCase();
+    const u = (data.users || []).find(x => String(x.email).toLowerCase() === email);
+    if (!u) return "nouser";
+    snapshot = data; meUser = u; me = u.name;
+    OWNERS = (data.users || []).filter(x => x.role === "member").map(x => x.name);
+    who = email;
     (remember ? ls : ss).set(PASS_KEY, pass); (remember ? ls : ss).set(WHO_KEY, who);
     showApp(); return "ok";
   }
@@ -645,18 +647,19 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
   });
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const who = document.getElementById("who").value, pass = document.getElementById("pw").value;
+    const who = document.getElementById("email").value, pass = document.getElementById("pw").value;
     const err = document.getElementById("login-err"), btn = document.getElementById("login-btn");
-    if (!who) { err.textContent = "Choose your name first."; return; }
+    if (!who.trim()) { err.textContent = "Enter your work email."; return; }
     btn.disabled = true; btn.textContent = "Checking…"; err.textContent = "";
     const r = await trySignIn(who, pass, document.getElementById("remember").checked);
     btn.disabled = false; btn.textContent = "Sign in";
     if (r === "bad") err.textContent = "That password didn't work. Check it with your team lead.";
+    if (r === "nouser") err.textContent = "That email isn't on the team list. Check the spelling or ask your team lead to add you.";
     if (r === "fetch") { err.textContent = "Couldn't load the tracker. Check your connection and try again."; blobPromise = null; }
   });
   document.getElementById("signout").addEventListener("click", () => {
     [ls, ss].forEach(s => { s.del(PASS_KEY); s.del(WHO_KEY); });
-    snapshot = null; me = null;
+    snapshot = null; me = null; meUser = null;
     document.getElementById("pw").value = "";
     document.getElementById("app").hidden = true;
     document.getElementById("login-view").hidden = false;

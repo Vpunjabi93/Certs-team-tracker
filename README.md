@@ -4,7 +4,7 @@ Daily task tracker for the Management Certs team (Veenu, Zil, Sovan, Tapan), hos
 
 ## How it works
 
-- **Login:** pick your name and enter the team password. The password is never stored in this repo.
+- **Login:** sign in with your work email and the team password. The list of team emails is inside the encrypted data, so no email address or name appears in this repo's readable files. The password is never stored here.
 - **Team snapshot:** the shared daily lists, read-only. One tab per day, grouped by programme, with SSD and delay flags and a carried-forward review per person.
 - **My copy:** the same lists, editable. Ticks, "Waiting" flags and new tasks save in your own browser only. **Copy my update** puts a plain-text summary of your changes on the clipboard to send to your lead.
 
