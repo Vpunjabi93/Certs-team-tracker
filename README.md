@@ -1,26 +1,29 @@
 # Certs Team Tracker
 
-Daily task tracker for the Management Certs team (Veenu, Zil, Sovan, Tapan), hosted on GitHub Pages.
+Live task tracker for the Management Certs team, hosted on GitHub Pages. Data lives in a Google Sheet owned by the team lead.
 
-## How it works
+## What people can do
 
-- **Login:** sign in with your work email and the team password. The list of team emails is inside the encrypted data, so no email address or name appears in this repo's readable files. The password is never stored here.
-- **Team snapshot:** the shared daily lists, read-only. One tab per day, grouped by programme, with SSD and delay flags and a carried-forward review per person.
-- **My copy:** the same lists, editable. Ticks, "Waiting" flags and new tasks save in your own browser only. **Copy my update** puts a plain-text summary of your changes on the clipboard to send to your lead.
+- **Sign in** with their work email and the team password.
+- **Board:** one column per person, with programmes (name and sales start date), tasks and subtasks.
+  - Tick tasks and subtasks off, mark them Waiting, edit or delete them.
+  - Add a programme, add tasks and subtasks, and change a programme's SSD, owner or status note.
+  - Every change saves to the Sheet, so everyone sees it the next time they open the page. Open pages refresh themselves every 45 seconds.
+- **Daily log:** for any day, what was added and what was completed, person by person. New tasks are stamped with the day they were added, and open tasks show how long they've been open.
 
-## Data and privacy
+## How it fits together
 
-The repo is public, so the task data is published only in encrypted form:
+| Piece | Where | Public? |
+|---|---|---|
+| `index.html`, `config.js` | This repo, served by GitHub Pages | Yes. No task data or emails. |
+| `apps-script/Code.gs` | Pasted into the Sheet's Apps Script project and deployed as a web app | Code only, no secrets |
+| Tasks, programmes, users, change log | The Google Sheet (tabs: Users, Programmes, Tasks, Log) | Private to the Sheet owner |
+| Team password | Apps Script → Project settings → Script properties (`TEAM_PASSWORD`) | Private |
 
-- `data.enc.json` is encrypted with AES-256-GCM. The key is derived from the team password with PBKDF2-SHA256 at 310,000 iterations.
-- Anyone can download the file, but without the password it can't be read.
-- The plaintext export (`private/data.json`) is git-ignored and never committed.
+`config.js` holds the web app URL. The URL is safe to publish because every request still needs a team email and the password. After 8 wrong passwords, that email is paused for 15 minutes.
 
-## Updating the snapshot
+## Common jobs
 
-```bash
-TEAM_PASSWORD='…' node tools/encrypt.mjs private/data.json data.enc.json
-git add data.enc.json && git commit -m "Update snapshot" && git push
-```
-
-To change the team password, re-run the command with the new password and push. Everyone signs in again with the new one.
+- **Add or remove a person:** edit the Users tab in the Sheet (email, name, role = `member` or `lead`). Members get a column; leads see everyone.
+- **Change the password:** in the Apps Script editor, type the new password into `setPassword()`, run it, then clear the value.
+- **Update the code:** paste the new `Code.gs`, then go to Deploy → Manage deployments → Edit → Version: New version → Deploy. The URL stays the same.

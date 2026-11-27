@@ -8,8 +8,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Mono:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<script src="config.js"></script>
 <style>
-/* Layout: login card, then the tracker: date strip, people summary, one column per person, carried-forward review */
+/* Layout: login card; then a live board (one column per person, programmes stacked, tasks with subtasks) and a daily log */
 :root {
   --bg: #F3F4F7; --surface: #FFFFFF; --ink: #171B25; --muted: #5C6474; --line: #DDE0E7;
   --accent: #5A2A85; --accent-soft: #EEE7F5;
@@ -33,87 +34,76 @@ body { background: var(--bg); color: var(--ink); font-family: var(--font-body); 
 [hidden] { display: none !important; }
 button, input, select { font: inherit; }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+input[type="text"], input[type="email"], input[type="password"], input[type="date"], select {
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; min-width: 0;
+}
 
 /* Login */
 .login-wrap { min-height: 100vh; display: grid; place-items: center; padding: 32px max(16px, env(safe-area-inset-right, 0px)) 32px max(16px, env(safe-area-inset-left, 0px)); }
-.login {
-  width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
-  padding: 28px 26px 24px; display: flex; flex-direction: column; gap: 18px;
-}
+.login { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 28px 26px 24px; display: flex; flex-direction: column; gap: 18px; }
 .login-mark { display: flex; align-items: center; gap: 10px; }
 .login-mark span { width: 34px; height: 34px; border-radius: 9px; background: var(--accent); color: var(--surface); display: grid; place-items: center; font-family: var(--font-display); font-weight: 700; font-size: 17px; }
 .login h1 { font-family: var(--font-display); font-weight: 700; font-size: 24px; letter-spacing: -0.02em; margin: 0; }
 .login p.sub { margin: -8px 0 0; color: var(--muted); font-size: 13.5px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
-.field select, .field input[type="password"], .field input[type="text"] {
-  width: 100%; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font-size: 14.5px;
-}
+.field > label, .lbl { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.login .field input { width: 100%; padding: 10px 12px; font-size: 14.5px; border-radius: 8px; }
 .pw-row { position: relative; }
-.pw-row input { padding-right: 64px; }
+.pw-row input { padding-right: 64px !important; }
 .pw-toggle { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); background: none; border: 0; color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px 8px; cursor: pointer; }
 .remember { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
-.remember input { accent-color: var(--accent); width: 15px; height: 15px; }
-.btn-primary { background: var(--accent); color: var(--surface); border: 0; border-radius: 8px; padding: 11px 14px; font-weight: 600; font-size: 14.5px; cursor: pointer; }
+.remember input, .toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+.btn-primary { background: var(--accent); color: var(--surface); border: 0; border-radius: 8px; padding: 10px 14px; font-weight: 600; cursor: pointer; }
 .btn-primary:disabled { opacity: .6; cursor: default; }
+.btn-ghost { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 7px; padding: 7px 12px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-ghost.warn { color: var(--warn); border-color: var(--warn); }
 .login-err { color: var(--warn); font-size: 13px; min-height: 1.2em; margin: -6px 0 0; }
 .login-foot { font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 14px; }
 
-/* App shell */
-.wrap {
-  max-width: 1320px; margin: 0 auto; padding-block: 24px 56px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
-  display: flex; flex-direction: column; gap: 22px;
-}
+/* App */
+.wrap { max-width: 1320px; margin: 0 auto; padding-block: 22px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-direction: column; gap: 20px; }
 header.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 10px 24px; }
-header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 34px); letter-spacing: -0.02em; margin: 0; }
 .meta { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; }
 .meta strong { color: var(--ink); font-weight: 600; }
+.sync { display: inline-flex; align-items: center; gap: 6px; }
+.sync::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--good); }
+.sync.saving::before { background: var(--wait); }
+.sync.error::before { background: var(--warn); }
 .linkish { background: none; border: 0; padding: 0; color: var(--accent); font-weight: 600; cursor: pointer; font-size: 13px; }
 
-/* View switch */
-.viewbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
-.seg { display: inline-flex; background: var(--bg); border-radius: 8px; padding: 3px; gap: 3px; }
-.seg button { border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 13px; padding: 7px 14px; border-radius: 6px; cursor: pointer; }
-.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgb(0 0 0 / .08); }
-.view-note { font-size: 13px; color: var(--muted); flex: 1 1 260px; min-width: 0; }
-.view-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.btn-ghost { background: none; border: 1px solid var(--line); color: var(--ink); border-radius: 7px; padding: 6px 11px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.btn-ghost:hover { border-color: var(--muted); }
-.btn-ghost.warn { color: var(--warn); border-color: var(--warn); }
+.viewbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.seg { display: inline-flex; background: var(--surface); border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 3px; }
+.seg button { border: 0; background: none; color: var(--muted); font-weight: 600; font-size: 13.5px; padding: 7px 16px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
 
-/* Date strip */
-.days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
-.day { flex: none; min-width: 112px; text-align: left; cursor: pointer; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px 10px; display: flex; flex-direction: column; gap: 1px; }
-.day:hover { border-color: var(--muted); }
-.day[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-.day-wd { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: .75; }
-.day-dm { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.15; }
-.day-n { font-family: var(--font-mono); font-size: 11.5px; opacity: .75; font-variant-numeric: tabular-nums; }
-
-/* People summary */
+/* People */
 .people { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
-.person { text-align: left; color: inherit; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.person { text-align: left; color: inherit; cursor: pointer; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
 .person:hover { border-color: var(--muted); }
 .person[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 .person-top { display: flex; align-items: center; gap: 10px; }
 .avatar { width: 30px; height: 30px; border-radius: 50%; flex: none; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); font-family: var(--font-display); font-weight: 700; font-size: 14px; }
 .person-name { font-family: var(--font-display); font-weight: 700; font-size: 17px; }
 .you { font-size: 11px; font-weight: 600; color: var(--accent); background: var(--accent-soft); padding: 1px 6px; border-radius: 4px; }
-.person-stats { margin-left: auto; font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
-.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; display: flex; }
-.bar span { display: block; height: 100%; }
-.b-done { background: var(--good); } .b-wait { background: var(--wait); } .b-moved { background: var(--warn); }
-.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 12.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .legend b { color: var(--ink); font-weight: 600; }
+.legend .old b { color: var(--warn); }
 
-/* Toolbar */
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.toolbar-right { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; }
 .tabs { display: flex; flex-wrap: wrap; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 3px; }
 .tab { font-size: 13px; font-weight: 500; color: var(--muted); background: none; border: 0; border-radius: 6px; padding: 6px 12px; cursor: pointer; }
 .tab[aria-selected="true"] { background: var(--accent-soft); color: var(--accent); }
 .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
-.toggle input { accent-color: var(--accent); width: 15px; height: 15px; }
+
+/* Panels (add / edit programme) */
+.panel { background: var(--surface); border: 1px solid var(--accent); border-radius: 10px; padding: 14px; display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.panel .field { flex: 1 1 180px; min-width: 0; }
+.panel .field input, .panel .field select { width: 100%; }
+.panel .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.panel .hint { flex-basis: 100%; font-size: 12.5px; color: var(--muted); margin: -4px 0 0; }
 
 /* Board */
 .board { display: grid; gap: 18px; align-items: start; }
@@ -122,76 +112,83 @@ header.top h1 { font-family: var(--font-display); font-weight: 700; font-size: c
 .col-head { display: flex; align-items: baseline; gap: 10px; padding: 0 2px; }
 .col-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 19px; margin: 0; }
 .col-head span { font-size: 12px; color: var(--muted); }
+.col-head .add-prog { margin-left: auto; }
 .progs { display: flex; flex-direction: column; gap: 12px; }
-.board.single .progs { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); align-items: start; }
+.board.single .progs { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); align-items: start; }
 .prog { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
 .prog-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 8px; padding: 12px 14px 10px; border-bottom: 1px solid var(--line); }
 .prog-name { font-family: var(--font-mono); font-weight: 600; font-size: 13.5px; letter-spacing: 0.01em; }
-.prog-count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; margin-left: auto; }
+.prog-tools { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.prog-count { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .chip { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; white-space: nowrap; background: var(--bg); color: var(--muted); }
 .chip.soon { background: var(--accent-soft); color: var(--accent); }
 .chip.past, .chip.flag { background: var(--warn-soft); color: var(--warn); }
 .chip.live { background: var(--good-soft); color: var(--good); }
-.prog.complete .prog-name { color: var(--muted); }
+.icon-btn { background: none; border: 1px solid transparent; color: var(--muted); border-radius: 5px; padding: 2px 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+.icon-btn:hover { color: var(--ink); border-color: var(--line); }
+
 ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
-.task { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; padding: 6px 14px; }
+ul.subtasks { list-style: none; margin: 2px 0 0; padding: 0 0 0 28px; border-left: 2px solid var(--line); margin-left: 22px; }
+.task { padding: 5px 14px; }
+ul.subtasks .task { padding: 4px 10px 4px 10px; }
+.task-row { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: start; }
 .check { width: 18px; height: 18px; margin-top: 1px; border-radius: 5px; flex: none; border: 1.5px solid var(--muted); background: transparent; cursor: pointer; padding: 0; display: grid; place-items: center; color: var(--surface); }
 .check svg { width: 12px; height: 12px; opacity: 0; }
-.task.done .check { background: var(--good); border-color: var(--good); }
-.task.done .check svg { opacity: 1; }
-.task.waiting .check { border-color: var(--wait); }
-.moved-icon { width: 18px; height: 18px; margin-top: 1px; display: grid; place-items: center; color: var(--warn); }
-.moved-icon svg { width: 15px; height: 15px; }
+.task.done > .task-row .check { background: var(--good); border-color: var(--good); }
+.task.done > .task-row .check svg { opacity: 1; }
+.task.waiting > .task-row .check { border-color: var(--wait); }
 .task-text { min-width: 0; overflow-wrap: anywhere; display: flex; flex-direction: column; gap: 3px; }
-.task.done .task-body { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
-.task.moved .task-body { color: var(--muted); }
-.tag { align-self: flex-start; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 1px 6px; border-radius: 4px; background: var(--warn-soft); color: var(--warn); white-space: nowrap; }
-.tag.local { background: var(--accent-soft); color: var(--accent); }
-.task-meta { display: flex; gap: 4px; align-items: center; }
+.task.done > .task-row .task-body { color: var(--muted); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--muted) 60%, transparent); }
+.task-meta-line { display: flex; flex-wrap: wrap; gap: 4px 8px; font-size: 11.5px; color: var(--muted); }
+.tag { font-size: 11px; font-weight: 600; letter-spacing: 0.02em; padding: 1px 6px; border-radius: 4px; background: var(--bg); color: var(--muted); white-space: nowrap; }
+.tag.old { background: var(--warn-soft); color: var(--warn); }
+.tag.done { background: var(--good-soft); color: var(--good); }
+.task-actions { display: flex; gap: 2px; align-items: center; opacity: .0; transition: opacity .12s; }
+.task-row:hover .task-actions, .task-row:focus-within .task-actions { opacity: 1; }
+@media (hover: none) { .task-actions { opacity: 1; } }
 .mini { font-size: 11px; font-weight: 600; letter-spacing: 0.03em; border: 1px solid var(--line); background: none; color: var(--muted); border-radius: 4px; padding: 1px 6px; cursor: pointer; white-space: nowrap; }
 .mini:hover { color: var(--ink); border-color: var(--muted); }
 .mini.on { background: var(--wait-soft); color: var(--wait); border-color: transparent; }
-.mini.rm { border-color: transparent; font-size: 14px; line-height: 1; padding: 1px 5px; opacity: 0; }
-.task:hover .mini.rm, .mini.rm:focus-visible, .mini.rm.confirm { opacity: 1; }
-.mini.rm.confirm { font-size: 11px; color: var(--warn); border-color: var(--warn); }
-.task.done .mini.wait { display: none; }
-@media (hover: none) { .mini.rm { opacity: .6; } }
-.add { padding: 4px 14px 12px; }
+.task-row .mini.on { opacity: 1; }
+.mini.danger.confirm { color: var(--warn); border-color: var(--warn); }
+.task.done > .task-row .mini.wait { display: none; }
+.wait-pin { font-size: 11px; font-weight: 600; color: var(--wait); background: var(--wait-soft); padding: 1px 6px; border-radius: 4px; }
+.inline-form { display: flex; gap: 6px; padding: 4px 0; }
+.inline-form input { flex: 1; min-width: 0; font-size: 13px; padding: 6px 9px; }
+.inline-form button { font-size: 12.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 6px; padding: 0 12px; cursor: pointer; }
+.add { padding: 2px 14px 12px; }
 .add-btn { font-size: 12.5px; color: var(--muted); background: none; border: 0; padding: 4px 0; cursor: pointer; }
 .add-btn:hover { color: var(--accent); }
-.add-form { display: flex; gap: 6px; }
-.add-form input { flex: 1; min-width: 0; font-size: 13px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 9px; }
-.add-form button { font-size: 12.5px; font-weight: 600; color: var(--accent); background: var(--accent-soft); border: 0; border-radius: 6px; padding: 0 12px; cursor: pointer; }
-.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 28px 20px; color: var(--muted); text-align: center; }
-.readonly .check, .readonly .mini { pointer-events: none; }
-.readonly .add, .readonly .mini.rm, .readonly .mini.wait:not(.on) { display: none; }
+.sub-add { padding: 0 10px 4px 10px; }
+.empty { background: var(--surface); border: 1px dashed var(--line); border-radius: 10px; padding: 24px 20px; color: var(--muted); text-align: center; }
 
-/* Carried forward */
-.carry { display: flex; flex-direction: column; gap: 14px; border-top: 1px solid var(--line); padding-top: 26px; }
-.carry-head h2 { font-family: var(--font-display); font-weight: 700; font-size: 22px; margin: 0 0 2px; letter-spacing: -0.01em; }
-.carry-head p { margin: 0; color: var(--muted); max-width: 65ch; }
-.carry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
-.carry-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
-.carry-card-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
-.carry-card-head .person-name { font-size: 16px; }
-.carry-sum { margin-left: auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-.carry-sum b { color: var(--ink); }
-.carry-list { list-style: none; margin: 0; padding: 6px 0; }
-.carry-list li { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 7px 14px; align-items: start; }
-.carry-list .cl-prog { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; color: var(--muted); }
-.carry-list .cl-text { min-width: 0; overflow-wrap: anywhere; }
-.carry-list li + li { border-top: 1px solid color-mix(in srgb, var(--line) 60%, transparent); }
-.carry-none { padding: 14px; color: var(--muted); font-size: 13px; }
-.carry-closed { padding: 10px 14px 12px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
-.carry-closed b { color: var(--good); font-weight: 600; }
+/* Daily log */
+.days { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+.day { flex: none; min-width: 108px; text-align: left; cursor: pointer; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px 10px; display: flex; flex-direction: column; gap: 1px; }
+.day:hover { border-color: var(--muted); }
+.day[aria-selected="true"] { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.day-wd { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: .75; }
+.day-dm { font-family: var(--font-display); font-weight: 700; font-size: 20px; line-height: 1.15; }
+.day-n { font-family: var(--font-mono); font-size: 11.5px; opacity: .75; }
+.log-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 14px; align-items: start; }
+.log-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; }
+.log-card-head { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.log-card-head .person-name { font-size: 16px; }
+.log-sum { margin-left: auto; font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.log-sec { padding: 10px 14px 4px; }
+.log-sec + .log-sec { border-top: 1px solid var(--line); }
+.log-sec h3 { margin: 0 0 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.log-list { list-style: none; margin: 0 0 8px; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+.log-list li { display: flex; flex-direction: column; gap: 2px; }
+.log-list .lp { font-family: var(--font-mono); font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.log-none { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
 
-.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 20; }
+.toast { position: fixed; left: 50%; bottom: max(20px, env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 14px; border-radius: 8px; font-size: 13px; font-weight: 500; z-index: 20; max-width: calc(100vw - 32px); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
 </style>
 </head>
 <body>
 
-<!-- Login -->
 <div class="login-wrap" id="login-view">
   <form class="login" id="login-form" autocomplete="on">
     <div class="login-mark"><span>C</span><h1>Certs Team Tracker</h1></div>
@@ -214,195 +211,168 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
   </form>
 </div>
 
-<!-- App -->
 <div class="wrap" id="app" hidden>
   <header class="top">
     <h1>Certs Team Tracker</h1>
     <div class="meta">
       <span>Signed in as <strong id="me-name"></strong></span>
-      <span id="snap-time"></span>
+      <span class="sync" id="sync">Up to date</span>
       <button class="linkish" type="button" id="signout">Sign out</button>
     </div>
   </header>
 
   <div class="viewbar">
     <div class="seg" role="group" aria-label="View">
-      <button type="button" id="mode-team" aria-pressed="true">Team snapshot</button>
-      <button type="button" id="mode-mine" aria-pressed="false">My copy</button>
+      <button type="button" id="view-board" aria-pressed="true">Board</button>
+      <button type="button" id="view-log" aria-pressed="false">Daily log</button>
     </div>
-    <div class="view-note" id="view-note"></div>
-    <div class="view-actions" id="mine-actions" hidden>
-      <button type="button" class="btn-ghost" id="copy-summary">Copy my update</button>
-      <button type="button" class="btn-ghost warn" id="reset-mine">Reset my copy</button>
-    </div>
+    <button type="button" class="btn-primary" id="open-add-prog">+ Add programme</button>
   </div>
 
-  <nav class="days" id="days" role="tablist" aria-label="Day"></nav>
-  <section class="people" id="people" aria-label="Team summary"></section>
+  <form class="panel" id="add-prog-panel" hidden>
+    <div class="field"><label for="np-name">Programme name</label><input type="text" id="np-name" maxlength="120" placeholder="e.g. IIM N HRA 02" required></div>
+    <div class="field"><label for="np-ssd">Sales start date</label><input type="date" id="np-ssd"></div>
+    <div class="field"><label for="np-owner">Owner</label><select id="np-owner"></select></div>
+    <div class="actions"><button type="submit" class="btn-primary">Add programme</button><button type="button" class="btn-ghost" id="np-cancel">Cancel</button></div>
+    <p class="hint">Add tasks and subtasks under it once it's on the board.</p>
+  </form>
 
-  <div class="toolbar">
-    <div class="tabs" role="tablist" id="tabs" aria-label="Person"></div>
-    <label class="toggle"><input type="checkbox" id="hide-done"> Hide completed</label>
-  </div>
+  <section id="board-view">
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <section class="people" id="people" aria-label="Team summary"></section>
+      <div class="toolbar">
+        <div class="tabs" role="tablist" id="tabs" aria-label="Person"></div>
+        <div class="toolbar-right">
+          <label class="toggle"><input type="checkbox" id="show-done"> Show all completed</label>
+        </div>
+      </div>
+      <main class="board all" id="board"></main>
+    </div>
+  </section>
 
-  <main class="board all" id="board"></main>
-  <section class="carry" id="carry" aria-labelledby="carry-title"></section>
+  <section id="log-view" hidden>
+    <div style="display:flex;flex-direction:column;gap:18px">
+      <nav class="days" id="days" role="tablist" aria-label="Day"></nav>
+      <div class="log-grid" id="log"></div>
+    </div>
+  </section>
 </div>
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
 (function () {
-  let OWNERS = [];
-  const DATA_URL = "data.enc.json";
-
-  // ---------- storage helpers ----------
-  const ls = {
-    get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} },
-    del(k) { try { localStorage.removeItem(k); } catch (e) {} }
-  };
-  const ss = {
-    get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } },
-    set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} },
-    del(k) { try { sessionStorage.removeItem(k); } catch (e) {} }
-  };
-
-  // ---------- crypto ----------
-  const b64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
-  let blobPromise = null;
-  function loadBlob() {
-    if (!blobPromise) blobPromise = fetch(DATA_URL + "?t=" + Date.now(), { cache: "no-store" }).then(r => {
-      if (!r.ok) throw new Error("fetch");
-      return r.json();
-    });
-    return blobPromise;
-  }
-  async function decrypt(pass) {
-    const blob = await loadBlob();
-    const enc = new TextEncoder();
-    const base = await crypto.subtle.importKey("raw", enc.encode(pass), "PBKDF2", false, ["deriveKey"]);
-    const key = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64(blob.salt), iterations: blob.iter, hash: "SHA-256" },
-      base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
-    const pt = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64(blob.iv) }, key, b64(blob.ct));
-    return JSON.parse(new TextDecoder().decode(pt));
-  }
+  const API = (window.TRACKER_API || "").trim();
+  const CREDS_KEY = "ct-creds";
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }, del(k) { try { localStorage.removeItem(k); } catch (e) {} } };
+  const ss = { get(k) { try { return sessionStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }, del(k) { try { sessionStorage.removeItem(k); } catch (e) {} } };
 
   // ---------- state ----------
-  let snapshot = null, me = null, meUser = null, mode = "team";
-  const state = { programmes: new Map(), tasks: new Map() };
-  let children = new Map();
-  let filter = "All", hideDone = ls.get("ct-hide") === "1", openAdd = null, confirmRm = null, selDay = null;
-  document.getElementById("hide-done").checked = hideDone;
+  let creds = null;           // {email, password}
+  let S = null;               // server state: {me, today, users, programmes, tasks}
+  let view = "board", filter = "All", showDone = false, selDay = null;
+  let editing = null;         // {type:'task'|'prog', id}
+  let adding = null;          // {programme, parent}
+  let confirmDel = null;
+  let queue = Promise.resolve(), pending = 0;
 
-  const blankOverlay = () => ({ patch: {}, added: [], removed: [] });
-  const overlayKey = () => "ct-mine-" + me;
-  function getOverlay() {
-    try { const o = JSON.parse(ls.get(overlayKey())); if (o && o.patch) return o; } catch (e) {}
-    return blankOverlay();
+  // ---------- API ----------
+  const ERRORS = {
+    bad_password: "That password didn't work. Check it with your team lead.",
+    unknown_email: "That email isn't on the team list. Check the spelling or ask your team lead to add you.",
+    locked: "Too many tries. Wait 15 minutes, then try again.",
+    not_set_up: "The tracker's Google Sheet isn't set up yet.",
+    busy: "Someone else is saving right now. Try again in a moment.",
+    duplicate_programme: "That person already has a programme with this name.",
+    name_required: "Give the programme a name.",
+    text_required: "Type the task first.",
+    bad_date: "That date isn't valid.",
+    not_found: "That item was deleted by someone else.",
+  };
+  const errText = (e) => (e && ERRORS[e.error]) || (e && e.error === "network" ? "Couldn't reach the tracker. Check your connection." : "Something went wrong. Try again.");
+
+  async function api(action, payload) {
+    let r;
+    try {
+      r = await fetch(API, { method: "POST", body: JSON.stringify(Object.assign({ action: action, email: creds.email, password: creds.password }, payload || {})) });
+    } catch (e) { throw { error: "network" }; }
+    let j; try { j = await r.json(); } catch (e) { throw { error: "network" }; }
+    if (!j.ok) throw j;
+    return j;
   }
-  function setOverlay(o) { ls.set(overlayKey(), JSON.stringify(o)); }
-  function overlayCount(o) { return Object.keys(o.patch).length + o.added.length + o.removed.length; }
 
-  function rebuild() {
-    state.programmes = new Map(snapshot.programmes.map(p => [p.id, p]));
-    const tasks = new Map(snapshot.tasks.map(t => [t.id, Object.assign({}, t)]));
-    if (mode === "mine") {
-      const o = getOverlay();
-      o.removed.forEach(id => tasks.delete(id));
-      Object.entries(o.patch).forEach(([id, p]) => { if (tasks.has(id)) Object.assign(tasks.get(id), p); });
-      o.added.forEach(t => tasks.set(t.id, Object.assign({ local: true }, t)));
-    }
-    state.tasks = tasks;
+  function setSync(kind, text) { const el = document.getElementById("sync"); el.className = "sync" + (kind ? " " + kind : ""); el.textContent = text; }
+  function stampSynced() { setSync("", "Up to date · " + new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })); }
+
+  // Every write: apply locally first, then save; the server's reply replaces local state.
+  function save(action, payload, localChange) {
+    if (localChange) { localChange(); render(); }
+    pending++; setSync("saving", "Saving…");
+    queue = queue.then(() => api(action, payload)).then(res => {
+      pending--; if (!pending) { S = res; render(); stampSynced(); }
+    }).catch(err => {
+      pending--; setSync("error", "Not saved"); toast(errText(err));
+      if (err && (err.error === "bad_password" || err.error === "unknown_email")) return signOut();
+      return refresh();
+    });
+    return queue;
+  }
+  async function refresh() {
+    if (!creds || pending) return;
+    try { const res = await api("load"); if (!pending) { S = res; render(); stampSynced(); } }
+    catch (err) { setSync("error", "Offline"); if (err && (err.error === "bad_password" || err.error === "unknown_email")) signOut(); }
   }
 
-  // ---------- dates ----------
-  const todayISO = () => new Date().toLocaleDateString("en-CA");
+  // ---------- helpers ----------
+  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+  const tickSVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.2 4.7-5"/></svg>';
   const asDate = (iso) => new Date(iso + "T00:00:00");
   const fmt = (iso) => asDate(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
   const fmtDay = (iso) => asDate(iso).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   const daysBetween = (a, b) => Math.round((asDate(b) - asDate(a)) / 86400000);
+  const today = () => (S && S.today) || new Date().toLocaleDateString("en-CA");
+  const members = () => S.users.filter(u => u.role === "member").map(u => u.name);
+  const progMap = () => new Map(S.programmes.map(p => [p.id, p]));
+  const liveTasks = () => { const pm = progMap(); return S.tasks.filter(t => !t.archived && pm.has(t.programme)); };
+  function ownersList() { const s = new Set(members()); S.programmes.forEach(p => p.owner && s.add(p.owner)); return Array.from(s); }
+  const isVisibleDone = (t) => t.status === "done" && (showDone || t.doneOn === today());
 
-  const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
-  const tickSVG = '<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.3l2.3 2.2 4.7-5"/></svg>';
-  const arrowSVG = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5"/></svg>';
-
-  const dayOf = (t) => t.day || todayISO();
-  function dayList() { const s = new Set(); state.tasks.forEach(t => s.add(dayOf(t))); return Array.from(s).sort(); }
-  function curDay() { const ds = dayList(); return (selDay && ds.includes(selDay)) ? selDay : (ds[ds.length - 1] || todayISO()); }
-  function prevDay(day) { const ds = dayList(); const i = ds.indexOf(day); return i > 0 ? ds[i - 1] : null; }
-  function rebuildChildren() { children = new Map(); state.tasks.forEach(t => { if (t.carriedFrom) children.set(t.carriedFrom, t); }); }
-  const isMoved = (t) => children.has(t.id);
-  function streak(t) {
-    let n = 1, cur = t, g = 0;
-    while (cur.carriedFrom && state.tasks.has(cur.carriedFrom) && g < 90) { cur = state.tasks.get(cur.carriedFrom); n++; g++; }
-    return { n: n, since: dayOf(cur) };
-  }
-  function ownersList() { const s = new Set(OWNERS); state.programmes.forEach(p => p.owner && s.add(p.owner)); return Array.from(s); }
-  function tasksFor(pid, day) { return Array.from(state.tasks.values()).filter(t => t.programme === pid && dayOf(t) === day).sort((a, b) => (a.order || 0) - (b.order || 0)); }
-  function progsFor(o) { return Array.from(state.programmes.values()).filter(p => p.owner === o).sort((a, b) => (a.order || 0) - (b.order || 0)); }
-  function statsFor(owner, day) {
-    const s = { open: 0, waiting: 0, done: 0, moved: 0, carried: 0, total: 0 };
-    state.tasks.forEach(t => {
-      if (t.owner !== owner || dayOf(t) !== day) return;
-      s.total++; if (t.carriedFrom) s.carried++;
-      if (isMoved(t)) s.moved++; else if (t.status === "done") s.done++; else if (t.status === "waiting") s.waiting++; else s.open++;
+  function statsFor(owner) {
+    const s = { open: 0, waiting: 0, doneToday: 0, oldest: 0 };
+    liveTasks().forEach(t => {
+      if (t.owner !== owner) return;
+      if (t.status === "done") { if (t.doneOn === today()) s.doneToday++; return; }
+      if (t.status === "waiting") s.waiting++; else s.open++;
+      s.oldest = Math.max(s.oldest, daysBetween(t.since || t.day, today()));
     });
     return s;
   }
-  function ssdChip(p, tasks, day) {
+  function ssdChip(p) {
     if (p.state === "live") return el("span", "chip live", "Live");
-    if (!p.ssd) return null;
-    const allDone = tasks.length && tasks.every(t => t.status === "done" || isMoved(t));
-    const d = daysBetween(day, p.ssd);
+    if (!p.ssd) return el("span", "chip", "No SSD");
+    const d = daysBetween(today(), p.ssd);
     if (d === 0) return el("span", "chip soon", "SSD today");
-    if (d > 0 && d <= 3) return el("span", "chip soon", "SSD " + fmt(p.ssd) + " · " + d + "d");
-    if (d < 0 && !allDone) return el("span", "chip past", "SSD " + fmt(p.ssd) + " · passed");
+    if (d > 0 && d <= 7) return el("span", "chip soon", "SSD " + fmt(p.ssd) + " · " + d + "d");
+    if (d < 0) return el("span", "chip past", "SSD " + fmt(p.ssd) + " · passed");
     return el("span", "chip", "SSD " + fmt(p.ssd));
   }
 
-  function setFilter(f) { filter = f; ls.set("ct-filter-" + me, f); render(); }
-  function setDay(d) { selDay = d; openAdd = null; render(); }
-
-  // ---------- render ----------
-  function renderDays() {
-    const wrap = document.getElementById("days"); wrap.textContent = "";
-    const ds = dayList(), cur = curDay(), t = todayISO();
-    ds.forEach(d => {
-      const b = el("button", "day"); b.type = "button"; b.setAttribute("role", "tab");
-      b.setAttribute("aria-selected", d === cur ? "true" : "false");
-      const dt = asDate(d);
-      const n = Array.from(state.tasks.values()).filter(x => dayOf(x) === d).length;
-      b.append(el("span", "day-wd", d === t ? "Today" : dt.toLocaleDateString("en-GB", { weekday: "long" })),
-        el("span", "day-dm", dt.toLocaleDateString("en-GB", { day: "numeric", month: "short" })),
-        el("span", "day-n", n + " tasks"));
-      b.addEventListener("click", () => setDay(d));
-      wrap.append(b);
-    });
-    const sel = wrap.querySelector('[aria-selected="true"]');
-    if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest", inline: "nearest" });
-  }
-
-  function renderPeople(day) {
+  // ---------- board ----------
+  function renderPeople() {
     const wrap = document.getElementById("people"); wrap.textContent = "";
     ownersList().forEach(o => {
-      const s = statsFor(o, day);
+      const s = statsFor(o);
       const b = el("button", "person"); b.type = "button";
       b.setAttribute("aria-pressed", filter === o ? "true" : "false");
       b.addEventListener("click", () => setFilter(filter === o ? "All" : o));
       const top = el("div", "person-top");
       top.append(el("span", "avatar", o[0]), el("span", "person-name", o));
-      if (o === me) top.append(el("span", "you", "You"));
-      top.append(el("span", "person-stats", s.done + "/" + s.total + " done"));
-      const bar = el("div", "bar");
-      [["b-done", s.done], ["b-wait", s.waiting], ["b-moved", s.moved]].forEach(([c, v]) => { const sp = el("span", c); sp.style.width = (s.total ? v / s.total * 100 : 0) + "%"; bar.append(sp); });
+      if (o === S.me.name) top.append(el("span", "you", "You"));
       const lg = el("div", "legend");
-      let h = "<span><b>" + s.open + "</b> open</span><span><b>" + s.waiting + "</b> waiting</span><span><b>" + s.carried + "</b> carried in</span>";
-      if (s.moved) h += "<span><b>" + s.moved + "</b> moved on</span>";
-      lg.innerHTML = h;
-      b.append(top, bar, lg); wrap.append(b);
+      lg.innerHTML = "<span><b>" + s.open + "</b> open</span><span><b>" + s.waiting + "</b> waiting</span><span><b>" + s.doneToday + "</b> done today</span>" +
+        (s.oldest >= 7 ? '<span class="old">oldest <b>' + s.oldest + "d</b></span>" : "");
+      b.append(top, lg); wrap.append(b);
     });
   }
-
   function renderTabs() {
     const tabs = document.getElementById("tabs"); tabs.textContent = "";
     ["All"].concat(ownersList()).forEach(o => {
@@ -411,265 +381,312 @@ ul.tasks { list-style: none; margin: 0; padding: 6px 0; }
       t.addEventListener("click", () => setFilter(o)); tabs.append(t);
     });
   }
+  function setFilter(f) { filter = f; ls.set("ct-filter-" + S.me.email, f); render(); }
 
-  function taskRow(t) {
-    const moved = isMoved(t);
-    const li = el("li", "task" + (moved ? " moved" : t.status === "done" ? " done" : t.status === "waiting" ? " waiting" : ""));
-    const txt = el("div", "task-text");
-    txt.append(el("span", "task-body", t.text));
-    if (t.carriedFrom) { const sk = streak(t); txt.append(el("span", "tag", "Carried · day " + sk.n + " · since " + fmt(sk.since))); }
-    if (t.local) txt.append(el("span", "tag local", "Added by you"));
-    if (moved) {
-      const ic = el("span", "moved-icon"); ic.innerHTML = arrowSVG; ic.setAttribute("aria-hidden", "true");
-      const meta = el("div", "task-meta"); meta.append(el("span", "tag", "Moved to " + fmt(dayOf(children.get(t.id)))));
-      li.append(ic, txt, meta); return li;
-    }
-    const cb = el("button", "check"); cb.type = "button"; cb.innerHTML = tickSVG;
-    cb.setAttribute("aria-label", t.status === "done" ? "Mark as not done" : "Mark as done");
-    cb.addEventListener("click", () => write(t.id, t.status === "done" ? { status: "open", doneOn: null } : { status: "done", doneOn: todayISO() }));
-    const meta = el("div", "task-meta");
-    const w = el("button", "mini wait" + (t.status === "waiting" ? " on" : ""), "Waiting"); w.type = "button";
-    w.setAttribute("aria-pressed", t.status === "waiting" ? "true" : "false");
-    w.addEventListener("click", () => write(t.id, { status: t.status === "waiting" ? "open" : "waiting" }));
-    const rm = el("button", "mini rm" + (confirmRm === t.id ? " confirm" : ""), confirmRm === t.id ? "Remove?" : "×");
-    rm.type = "button"; rm.setAttribute("aria-label", "Remove task");
-    rm.addEventListener("click", () => {
-      if (confirmRm === t.id) { confirmRm = null; remove(t.id); }
-      else { confirmRm = t.id; render(); setTimeout(() => { if (confirmRm === t.id) { confirmRm = null; render(); } }, 3500); }
-    });
-    meta.append(w, rm); li.append(cb, txt, meta); return li;
+  function inlineForm(placeholder, initial, onSubmit, onCancel, id) {
+    const f = el("form", "inline-form");
+    const inp = el("input"); inp.type = "text"; inp.placeholder = placeholder; inp.value = initial || ""; inp.maxLength = 300; inp.id = id; inp.autocomplete = "off";
+    const go = el("button", null, "Save"); go.type = "submit";
+    f.append(inp, go);
+    f.addEventListener("submit", (e) => { e.preventDefault(); const v = inp.value.trim(); if (!v) { onCancel(); return; } onSubmit(v); });
+    inp.addEventListener("keydown", (e) => { if (e.key === "Escape") onCancel(); });
+    setTimeout(() => { const n = document.getElementById(id); if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); } }, 0);
+    return f;
   }
 
-  function progBlock(p, day) {
-    const all = tasksFor(p.id, day);
-    const shown = hideDone ? all.filter(t => t.status !== "done" || isMoved(t)) : all;
-    const done = all.filter(t => t.status === "done" && !isMoved(t)).length;
-    const box = el("article", "prog" + (all.length && done === all.length ? " complete" : ""));
-    const head = el("div", "prog-head");
-    head.append(el("span", "prog-name", p.name));
-    const chip = ssdChip(p, all, day); if (chip) head.append(chip);
-    if (p.flag) head.append(el("span", "chip flag", p.flag));
-    head.append(el("span", "prog-count", done + "/" + all.length));
-    box.append(head);
-    if (shown.length) { const ul = el("ul", "tasks"); shown.forEach(t => ul.append(taskRow(t))); box.append(ul); }
-    const add = el("div", "add");
-    if (openAdd === p.id) {
-      const f = el("form", "add-form");
-      const inp = el("input"); inp.id = "add-" + p.id; inp.placeholder = "New task for " + fmt(day); inp.autocomplete = "off";
-      const go = el("button", null, "Add"); go.type = "submit";
-      f.append(inp, go);
-      f.addEventListener("submit", (e) => {
-        e.preventDefault(); const v = inp.value.trim();
-        if (!v) { openAdd = null; render(); return; }
-        addTask(p, v, all.reduce((m, t) => Math.max(m, t.order || 0), 0) + 1, day);
+  function taskItem(t, subs) {
+    const li = el("li", "task" + (t.status === "done" ? " done" : t.status === "waiting" ? " waiting" : ""));
+    const row = el("div", "task-row");
+    const cb = el("button", "check"); cb.type = "button"; cb.innerHTML = tickSVG;
+    cb.setAttribute("aria-label", t.status === "done" ? "Mark as not done" : "Mark as done");
+    cb.addEventListener("click", () => {
+      const status = t.status === "done" ? "open" : "done";
+      save("updateTask", { id: t.id, fields: { status: status } }, () => { t.status = status; t.doneOn = status === "done" ? today() : ""; });
+    });
+    const txt = el("div", "task-text");
+    if (editing && editing.type === "task" && editing.id === t.id) {
+      txt.append(inlineForm("Task", t.text, (v) => { editing = null; save("updateTask", { id: t.id, fields: { text: v } }, () => { t.text = v; }); }, () => { editing = null; render(); }, "edit-" + t.id));
+    } else {
+      txt.append(el("span", "task-body", t.text));
+      const ml = el("div", "task-meta-line");
+      if (t.status === "done") ml.append(el("span", "tag done", "Done " + (t.doneOn ? fmt(t.doneOn) : "")));
+      else {
+        const age = daysBetween(t.since || t.day, today());
+        ml.append(el("span", "tag" + (age >= 7 ? " old" : ""), age <= 0 ? "Added today" : "Open since " + fmt(t.since || t.day) + " · " + age + "d"));
+        if (t.status === "waiting") ml.append(el("span", "wait-pin", "Waiting"));
+      }
+      if (t.updatedBy && t.updatedBy !== "Import" && t.updatedBy !== t.owner) ml.append(el("span", null, "by " + t.updatedBy));
+      txt.append(ml);
+    }
+    const acts = el("div", "task-actions");
+    const w = el("button", "mini wait" + (t.status === "waiting" ? " on" : ""), "Waiting"); w.type = "button";
+    w.title = "Waiting on someone else"; w.setAttribute("aria-pressed", t.status === "waiting" ? "true" : "false");
+    w.addEventListener("click", () => { const st = t.status === "waiting" ? "open" : "waiting"; save("updateTask", { id: t.id, fields: { status: st } }, () => { t.status = st; }); });
+    acts.append(w);
+    if (!t.parent) {
+      const sb = el("button", "mini", "+ Sub"); sb.type = "button"; sb.title = "Add a subtask";
+      sb.addEventListener("click", () => { adding = { programme: t.programme, parent: t.id }; editing = null; render(); });
+      acts.append(sb);
+    }
+    const ed = el("button", "mini", "Edit"); ed.type = "button";
+    ed.addEventListener("click", () => { editing = { type: "task", id: t.id }; adding = null; render(); });
+    const del = el("button", "mini danger" + (confirmDel === t.id ? " confirm" : ""), confirmDel === t.id ? "Delete?" : "×"); del.type = "button";
+    del.setAttribute("aria-label", "Delete task");
+    del.addEventListener("click", () => {
+      if (confirmDel === t.id) { confirmDel = null; save("deleteTask", { id: t.id }, () => { S.tasks = S.tasks.filter(x => x.id !== t.id && x.parent !== t.id); }); }
+      else { confirmDel = t.id; render(); setTimeout(() => { if (confirmDel === t.id) { confirmDel = null; render(); } }, 3500); }
+    });
+    acts.append(ed, del);
+    row.append(cb, txt, acts); li.append(row);
+
+    if (!t.parent) {
+      const shownSubs = subs.filter(s => s.status !== "done" || isVisibleDone(s));
+      if (shownSubs.length || (adding && adding.parent === t.id)) {
+        const ul = el("ul", "subtasks");
+        shownSubs.forEach(s => ul.append(taskItem(s, [])));
+        if (adding && adding.parent === t.id) {
+          const fl = el("li", "sub-add");
+          fl.append(inlineForm("New subtask", "", (v) => { adding = null; addTask(t.programme, v, t.id); }, () => { adding = null; render(); }, "add-sub-" + t.id));
+          ul.append(fl);
+        }
+        li.append(ul);
+      }
+    }
+    return li;
+  }
+
+  function addTask(programme, text, parent) {
+    const p = progMap().get(programme);
+    const tmp = { id: "tmp-" + Date.now(), programme: programme, owner: p ? p.owner : "", parent: parent || "", text: text, status: "open", day: today(), since: today(), order: 9999, doneOn: "", archived: false, updatedBy: S.me.name };
+    save("addTask", { programme: programme, text: text, parent: parent || "" }, () => { S.tasks.push(tmp); });
+  }
+
+  function progEditPanel(p) {
+    const f = el("form", "panel"); f.style.margin = "10px"; f.style.borderColor = "var(--line)";
+    const mk = (label, input) => { const d = el("div", "field"); const l = el("label", null, label); l.htmlFor = input.id; d.append(l, input); return d; };
+    const name = el("input"); name.type = "text"; name.id = "pe-name-" + p.id; name.value = p.name; name.maxLength = 120;
+    const ssd = el("input"); ssd.type = "date"; ssd.id = "pe-ssd-" + p.id; ssd.value = p.ssd || "";
+    const owner = el("select"); owner.id = "pe-owner-" + p.id;
+    members().forEach(m => { const o = el("option", null, m); o.value = m; if (m === p.owner) o.selected = true; owner.append(o); });
+    const flag = el("input"); flag.type = "text"; flag.id = "pe-flag-" + p.id; flag.value = p.flag || ""; flag.placeholder = "e.g. Delayed (IRT)"; flag.maxLength = 60;
+    const liveL = el("label", "toggle"); const live = el("input"); live.type = "checkbox"; live.id = "pe-live-" + p.id; live.checked = p.state === "live"; liveL.append(live, document.createTextNode(" Programme is live"));
+    const acts = el("div", "actions");
+    const sv = el("button", "btn-primary", "Save"); sv.type = "submit";
+    const cn = el("button", "btn-ghost", "Cancel"); cn.type = "button"; cn.addEventListener("click", () => { editing = null; render(); });
+    const ar = el("button", "btn-ghost warn", "Archive"); ar.type = "button"; ar.title = "Hide this programme from the board";
+    let armed = false;
+    ar.addEventListener("click", () => {
+      if (!armed) { armed = true; ar.textContent = "Click again to archive"; setTimeout(() => { armed = false; ar.textContent = "Archive"; }, 3500); return; }
+      editing = null; save("updateProgramme", { id: p.id, fields: { state: "archived" } }, () => { S.programmes = S.programmes.filter(x => x.id !== p.id); });
+    });
+    acts.append(sv, cn, ar);
+    f.append(mk("Programme name", name), mk("Sales start date", ssd), mk("Owner", owner), mk("Status note", flag), liveL, acts);
+    f.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const fields = { name: name.value.trim(), ssd: ssd.value, owner: owner.value, flag: flag.value.trim(), state: live.checked ? "live" : "" };
+      if (!fields.name) { toast(ERRORS.name_required); return; }
+      editing = null;
+      save("updateProgramme", { id: p.id, fields: fields }, () => {
+        Object.assign(p, fields);
+        S.tasks.forEach(t => { if (t.programme === p.id) t.owner = fields.owner; });
       });
-      inp.addEventListener("keydown", (e) => { if (e.key === "Escape") { openAdd = null; render(); } });
-      add.append(f);
-      setTimeout(() => { const n = document.getElementById("add-" + p.id); if (n) n.focus(); }, 0);
+    });
+    setTimeout(() => { const n = document.getElementById("pe-name-" + p.id); if (n) n.focus(); }, 0);
+    return f;
+  }
+
+  function progBlock(p, tasks) {
+    const top = tasks.filter(t => !t.parent).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const subsOf = (id) => tasks.filter(t => t.parent === id).sort((a, b) => (a.order || 0) - (b.order || 0));
+    const done = tasks.filter(t => t.status === "done").length;
+    const box = el("article", "prog");
+    const head = el("div", "prog-head");
+    head.append(el("span", "prog-name", p.name), ssdChip(p));
+    if (p.flag) head.append(el("span", "chip flag", p.flag));
+    const tools = el("div", "prog-tools");
+    tools.append(el("span", "prog-count", done + "/" + tasks.length));
+    const eb = el("button", "icon-btn", "Edit"); eb.type = "button"; eb.setAttribute("aria-label", "Edit " + p.name);
+    eb.addEventListener("click", () => { editing = { type: "prog", id: p.id }; adding = null; render(); });
+    tools.append(eb); head.append(tools); box.append(head);
+    if (editing && editing.type === "prog" && editing.id === p.id) box.append(progEditPanel(p));
+
+    const shown = top.filter(t => t.status !== "done" || isVisibleDone(t) || subsOf(t.id).some(s => s.status !== "done"));
+    if (shown.length) { const ul = el("ul", "tasks"); shown.forEach(t => ul.append(taskItem(t, subsOf(t.id)))); box.append(ul); }
+    const add = el("div", "add");
+    if (adding && adding.programme === p.id && !adding.parent) {
+      add.append(inlineForm("New task", "", (v) => { adding = null; addTask(p.id, v, ""); }, () => { adding = null; render(); }, "add-" + p.id));
     } else {
       const ab = el("button", "add-btn", "+ Add task"); ab.type = "button";
-      ab.addEventListener("click", () => { openAdd = p.id; render(); }); add.append(ab);
+      ab.addEventListener("click", () => { adding = { programme: p.id, parent: "" }; editing = null; render(); });
+      add.append(ab);
     }
     box.append(add); return box;
   }
 
-  function renderBoard(day) {
+  function renderBoard() {
     const board = document.getElementById("board");
     board.className = "board " + (filter === "All" ? "all" : "single"); board.textContent = "";
     const owners = filter === "All" ? ownersList() : [filter];
+    const lt = liveTasks();
     owners.forEach(o => {
-      const col = el("section", "col"); const s = statsFor(o, day);
-      const h = el("div", "col-head"); h.append(el("h2", null, o), el("span", null, (s.open + s.waiting) + " to go")); col.append(h);
+      const col = el("section", "col"); const s = statsFor(o);
+      const h = el("div", "col-head"); h.append(el("h2", null, o), el("span", null, (s.open + s.waiting) + " to go"));
+      const ap = el("button", "icon-btn add-prog", "+ Programme"); ap.type = "button";
+      ap.addEventListener("click", () => openAddProg(o));
+      h.append(ap); col.append(h);
       const progs = el("div", "progs");
-      progsFor(o).forEach(p => {
-        const ts = tasksFor(p.id, day); if (!ts.length) return;
-        if (hideDone && ts.every(t => t.status === "done" && !isMoved(t))) return;
-        progs.append(progBlock(p, day));
-      });
-      if (!progs.children.length) progs.append(el("div", "empty", hideDone ? "All done." : "Nothing on the list for " + fmtDay(day) + "."));
+      S.programmes.filter(p => p.owner === o)
+        .sort((a, b) => ((a.ssd || "9999") > (b.ssd || "9999") ? 1 : (a.ssd || "9999") < (b.ssd || "9999") ? -1 : (a.order || 0) - (b.order || 0)))
+        .forEach(p => {
+          const ts = lt.filter(t => t.programme === p.id);
+          const allDoneHidden = ts.length && ts.every(t => t.status === "done" && !isVisibleDone(t));
+          if (allDoneHidden && !(editing && editing.id === p.id) && !(adding && adding.programme === p.id)) return;
+          progs.append(progBlock(p, ts));
+        });
+      if (!progs.children.length) progs.append(el("div", "empty", "No open tasks. Use + Programme to start one."));
       col.append(progs); board.append(col);
     });
   }
 
-  function renderCarry(day) {
-    const sec = document.getElementById("carry"); sec.textContent = "";
-    const prev = prevDay(day);
-    const head = el("div", "carry-head"); const h = el("h2", null, "Carried forward"); h.id = "carry-title";
-    head.append(h, el("p", null, prev
-      ? "Tasks from " + fmtDay(prev) + " that are still on each person's list for " + fmtDay(day) + ", with how many daily lists they've been on."
-      : fmtDay(day) + " is the first day in the tracker, so nothing was carried in yet."));
-    sec.append(head); if (!prev) return;
-    const grid = el("div", "carry-grid");
-    (filter === "All" ? ownersList() : [filter]).forEach(o => {
-      const todays = Array.from(state.tasks.values()).filter(t => t.owner === o && dayOf(t) === day);
-      const carried = todays.filter(t => t.carriedFrom);
-      const prevTasks = Array.from(state.tasks.values()).filter(t => t.owner === o && dayOf(t) === prev);
-      const closed = prevTasks.filter(t => !isMoved(t) && t.status === "done");
-      const card = el("article", "carry-card");
-      const ch = el("div", "carry-card-head"); const sum = el("span", "carry-sum");
-      sum.innerHTML = "<b>" + carried.length + "</b> of " + todays.length + " carried in";
-      ch.append(el("span", "avatar", o[0]), el("span", "person-name", o), sum); card.append(ch);
-      if (carried.length) {
-        const ul = el("ul", "carry-list");
-        carried.map(t => ({ t: t, sk: streak(t), p: state.programmes.get(t.programme) }))
-          .sort((a, b) => (b.sk.n - a.sk.n) || (((a.p && a.p.order) || 0) - ((b.p && b.p.order) || 0)) || ((a.t.order || 0) - (b.t.order || 0)))
-          .forEach(({ t, sk, p }) => {
-            const li = el("li");
-            li.append(el("span", "cl-prog", p ? p.name : ""), el("span", "cl-text", t.text),
-              el("span", "tag", "Day " + sk.n + (t.status === "done" ? " · done" : t.status === "waiting" ? " · waiting" : "")));
-            ul.append(li);
-          });
-        card.append(ul);
-      } else card.append(el("div", "carry-none", "Nothing carried in from " + fmtDay(prev) + "."));
-      const cl = el("div", "carry-closed");
-      cl.innerHTML = "<b>" + closed.length + "</b> of " + prevTasks.length + " tasks from " + fmt(prev) + " closed out";
-      card.append(cl); grid.append(card);
+  // ---------- add programme ----------
+  function openAddProg(owner) {
+    const panel = document.getElementById("add-prog-panel");
+    const sel = document.getElementById("np-owner"); sel.textContent = "";
+    members().forEach(m => { const o = el("option", null, m); o.value = m; sel.append(o); });
+    sel.value = owner || (members().includes(S.me.name) ? S.me.name : members()[0]);
+    document.getElementById("np-name").value = ""; document.getElementById("np-ssd").value = "";
+    panel.hidden = false; document.getElementById("np-name").focus();
+    if (view !== "board") setView("board");
+    panel.scrollIntoView({ block: "nearest" });
+  }
+  document.getElementById("open-add-prog").addEventListener("click", () => openAddProg());
+  document.getElementById("np-cancel").addEventListener("click", () => { document.getElementById("add-prog-panel").hidden = true; });
+  document.getElementById("add-prog-panel").addEventListener("submit", (e) => {
+    e.preventDefault();
+    const name = document.getElementById("np-name").value.trim(), ssd = document.getElementById("np-ssd").value, owner = document.getElementById("np-owner").value;
+    if (!name) { toast(ERRORS.name_required); return; }
+    document.getElementById("add-prog-panel").hidden = true;
+    const tmpId = "tmp-p-" + Date.now();
+    save("addProgramme", { name: name, ssd: ssd, owner: owner }, () => {
+      S.programmes.push({ id: tmpId, name: name, ssd: ssd, owner: owner, state: "", flag: "", order: 9999 });
+      adding = null;
+    }).then(() => {
+      const p = S.programmes.find(x => x.name === name && x.owner === owner && !String(x.id).startsWith("tmp"));
+      if (p) { adding = { programme: p.id, parent: "" }; render(); }
     });
-    sec.append(grid);
+    toast("Added " + name + ". Now add its first task.");
+  });
+
+  // ---------- daily log ----------
+  function activityDays() {
+    const s = new Set();
+    S.tasks.forEach(t => { if (t.day) s.add(t.day); if (t.doneOn) s.add(t.doneOn); });
+    return Array.from(s).filter(Boolean).sort();
+  }
+  function renderLog() {
+    const ds = activityDays();
+    const cur = (selDay && ds.includes(selDay)) ? selDay : ds[ds.length - 1];
+    const strip = document.getElementById("days"); strip.textContent = "";
+    ds.forEach(d => {
+      const n = S.tasks.filter(t => t.day === d || t.doneOn === d).length;
+      const b = el("button", "day"); b.type = "button"; b.setAttribute("role", "tab"); b.setAttribute("aria-selected", d === cur ? "true" : "false");
+      b.append(el("span", "day-wd", d === today() ? "Today" : asDate(d).toLocaleDateString("en-GB", { weekday: "long" })), el("span", "day-dm", fmt(d)), el("span", "day-n", n + " items"));
+      b.addEventListener("click", () => { selDay = d; renderLog(); });
+      strip.append(b);
+    });
+    const sel = strip.querySelector('[aria-selected="true"]'); if (sel && sel.scrollIntoView) sel.scrollIntoView({ block: "nearest", inline: "nearest" });
+    const grid = document.getElementById("log"); grid.textContent = "";
+    if (!cur) { grid.append(el("div", "empty", "Nothing logged yet.")); return; }
+    const pm = new Map(S.programmes.map(p => [p.id, p]));
+    const pname = (id) => (pm.get(id) || {}).name || "Archived programme";
+    (filter === "All" ? ownersList() : [filter]).forEach(o => {
+      const added = S.tasks.filter(t => t.owner === o && t.day === cur);
+      const done = S.tasks.filter(t => t.owner === o && t.doneOn === cur && t.status === "done");
+      const card = el("article", "log-card");
+      const h = el("div", "log-card-head");
+      h.append(el("span", "avatar", o[0]), el("span", "person-name", o), el("span", "log-sum", added.length + " on the list · " + done.length + " done"));
+      card.append(h);
+      const sec = (title, arr, tagFn) => {
+        const s = el("div", "log-sec"); s.append(el("h3", null, title));
+        if (!arr.length) { s.append(el("p", "log-none", "None")); return s; }
+        const ul = el("ul", "log-list");
+        arr.forEach(t => { const li = el("li"); li.append(el("span", "lp", pname(t.programme) + (t.parent ? " · subtask" : "")), el("span", null, t.text)); const tg = tagFn(t); if (tg) li.append(tg); ul.append(li); });
+        s.append(ul); return s;
+      };
+      card.append(sec("Added or carried that day", added, t => t.carriedFrom ? el("span", "tag" + (daysBetween(t.since, cur) >= 7 ? " old" : ""), "Carried · since " + fmt(t.since)) : null));
+      card.append(sec("Completed that day", done, () => null));
+      grid.append(card);
+    });
   }
 
-  function renderViewbar() {
-    document.getElementById("mode-team").setAttribute("aria-pressed", mode === "team" ? "true" : "false");
-    document.getElementById("mode-mine").setAttribute("aria-pressed", mode === "mine" ? "true" : "false");
-    document.getElementById("mine-actions").hidden = mode !== "mine";
-    const note = document.getElementById("view-note");
-    if (mode === "team") note.textContent = "The shared list, as of the last update. Switch to My copy to tick off tasks or add your own.";
-    else {
-      const n = overlayCount(getOverlay());
-      note.textContent = (n ? n + (n === 1 ? " change" : " changes") + " so far. " : "") + "Changes save in this browser only. Use Copy my update to send them to your lead.";
-    }
+  // ---------- shell ----------
+  function setView(v) {
+    view = v;
+    document.getElementById("view-board").setAttribute("aria-pressed", v === "board" ? "true" : "false");
+    document.getElementById("view-log").setAttribute("aria-pressed", v === "log" ? "true" : "false");
+    document.getElementById("board-view").hidden = v !== "board";
+    document.getElementById("log-view").hidden = v !== "log";
+    render();
   }
+  document.getElementById("view-board").addEventListener("click", () => setView("board"));
+  document.getElementById("view-log").addEventListener("click", () => setView("log"));
+  document.getElementById("show-done").addEventListener("change", (e) => { showDone = e.target.checked; render(); });
 
   function render() {
-    rebuildChildren();
-    const day = curDay();
-    document.getElementById("app").classList.toggle("readonly", mode !== "mine");
-    renderViewbar(); renderDays(); renderPeople(day); renderTabs(); renderBoard(day); renderCarry(day);
-  }
-
-  // ---------- my copy edits ----------
-  function write(id, patch) {
-    if (mode !== "mine") return;
-    const o = getOverlay();
-    const a = o.added.find(t => t.id === id);
-    if (a) Object.assign(a, patch); else o.patch[id] = Object.assign({}, o.patch[id] || {}, patch);
-    setOverlay(o); rebuild(); render();
-  }
-  function remove(id) {
-    if (mode !== "mine") return;
-    const o = getOverlay();
-    const i = o.added.findIndex(t => t.id === id);
-    if (i >= 0) o.added.splice(i, 1); else { o.removed.push(id); delete o.patch[id]; }
-    setOverlay(o); rebuild(); render();
-  }
-  function addTask(p, text, order, day) {
-    if (mode !== "mine") return;
-    const o = getOverlay();
-    o.added.push({ id: "local-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), day: day, programme: p.id, owner: p.owner, text: text, status: "open", order: order });
-    setOverlay(o); rebuild(); render();
-  }
-
-  function summaryText() {
-    const o = getOverlay();
-    const byId = new Map(snapshot.tasks.map(t => [t.id, t]));
-    const pname = (id) => (state.programmes.get(id) || {}).name || "";
-    const lines = [];
-    const done = [], waiting = [], reopened = [];
-    Object.entries(o.patch).forEach(([id, p]) => {
-      const t = byId.get(id); if (!t) return;
-      const label = pname(t.programme) + ": " + t.text + " (" + fmt(t.day) + ")";
-      if (p.status === "done") done.push(label); else if (p.status === "waiting") waiting.push(label); else if (p.status === "open") reopened.push(label);
-    });
-    const added = o.added.map(t => pname(t.programme) + ": " + t.text + (t.status === "done" ? " (done)" : ""));
-    const removed = o.removed.map(id => byId.get(id)).filter(Boolean).map(t => pname(t.programme) + ": " + t.text);
-    lines.push("Update from " + me + " (" + new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ")");
-    const sect = (title, arr) => { if (arr.length) { lines.push("", title); arr.forEach(x => lines.push("- " + x)); } };
-    sect("Done", done); sect("Waiting on someone", waiting); sect("Reopened", reopened); sect("New tasks", added); sect("Removed", removed);
-    if (lines.length === 1) lines.push("", "No changes yet.");
-    return lines.join("\n");
+    if (!S) return;
+    // keep focus inside an open inline form across re-renders
+    if (view === "board") { renderPeople(); renderTabs(); renderBoard(); }
+    else { renderTabs(); renderLog(); }
   }
 
   let toastTimer = null;
-  function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
-
-  document.getElementById("mode-team").addEventListener("click", () => { mode = "team"; ls.set("ct-mode-" + me, mode); openAdd = null; rebuild(); render(); });
-  document.getElementById("mode-mine").addEventListener("click", () => { mode = "mine"; ls.set("ct-mode-" + me, mode); rebuild(); render(); });
-  document.getElementById("hide-done").addEventListener("change", (e) => { hideDone = e.target.checked; ls.set("ct-hide", hideDone ? "1" : "0"); render(); });
-  let resetArmed = false;
-  document.getElementById("reset-mine").addEventListener("click", (e) => {
-    if (!resetArmed) { resetArmed = true; e.target.textContent = "Click again to reset"; setTimeout(() => { resetArmed = false; e.target.textContent = "Reset my copy"; }, 3500); return; }
-    resetArmed = false; e.target.textContent = "Reset my copy";
-    setOverlay(blankOverlay()); rebuild(); render(); toast("Your copy now matches the team snapshot");
-  });
-  document.getElementById("copy-summary").addEventListener("click", () => {
-    const text = summaryText();
-    const fallback = () => {
-      const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", ""); ta.style.position = "fixed"; ta.style.opacity = "0";
-      document.body.append(ta); ta.select();
-      let ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
-      ta.remove(); toast(ok ? "Update copied. Paste it to your lead." : "Couldn't copy here. Try another browser.");
-    };
-    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => toast("Update copied. Paste it to your lead."), fallback);
-    else fallback();
-  });
+  function toast(msg) { const t = document.getElementById("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 3200); }
 
   // ---------- sign in / out ----------
-  const PASS_KEY = "ct-pass", WHO_KEY = "ct-who";
   function showApp() {
     document.getElementById("login-view").hidden = true;
     document.getElementById("app").hidden = false;
-    document.getElementById("me-name").textContent = me;
-    if (snapshot.updated) {
-      const d = new Date(snapshot.updated);
-      document.getElementById("snap-time").textContent = "Snapshot " + d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) + ", " + d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-    }
-    filter = ls.get("ct-filter-" + me) || (OWNERS.includes(me) ? me : "All");
-    mode = ls.get("ct-mode-" + me) === "mine" ? "mine" : "team";
-    rebuild(); render();
+    document.getElementById("me-name").textContent = S.me.name;
+    filter = ls.get("ct-filter-" + S.me.email) || (members().includes(S.me.name) ? S.me.name : "All");
+    setView("board"); stampSynced();
   }
-  async function trySignIn(who, pass, remember) {
-    let data;
-    try { data = await decrypt(pass); }
-    catch (e) { return e && e.message === "fetch" ? "fetch" : "bad"; }
-    const email = String(who || "").trim().toLowerCase();
-    const u = (data.users || []).find(x => String(x.email).toLowerCase() === email);
-    if (!u) return "nouser";
-    snapshot = data; meUser = u; me = u.name;
-    OWNERS = (data.users || []).filter(x => x.role === "member").map(x => x.name);
-    who = email;
-    (remember ? ls : ss).set(PASS_KEY, pass); (remember ? ls : ss).set(WHO_KEY, who);
-    showApp(); return "ok";
+  async function signIn(email, password, remember) {
+    creds = { email: email.trim().toLowerCase(), password: password };
+    try { S = await api("load"); }
+    catch (e) { creds = null; return e; }
+    (remember ? ls : ss).set(CREDS_KEY, JSON.stringify(creds));
+    showApp(); return null;
   }
+  function signOut() {
+    ls.del(CREDS_KEY); ss.del(CREDS_KEY); creds = null; S = null;
+    document.getElementById("pw").value = "";
+    document.getElementById("app").hidden = true; document.getElementById("login-view").hidden = false;
+  }
+  document.getElementById("signout").addEventListener("click", signOut);
   document.getElementById("pw-toggle").addEventListener("click", (e) => {
     const pw = document.getElementById("pw"); const show = pw.type === "password";
-    pw.type = show ? "text" : "password"; e.target.textContent = show ? "Hide" : "Show";
-    e.target.setAttribute("aria-label", show ? "Hide password" : "Show password");
+    pw.type = show ? "text" : "password"; e.target.textContent = show ? "Hide" : "Show"; e.target.setAttribute("aria-label", show ? "Hide password" : "Show password");
   });
   document.getElementById("login-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const who = document.getElementById("email").value, pass = document.getElementById("pw").value;
     const err = document.getElementById("login-err"), btn = document.getElementById("login-btn");
-    if (!who.trim()) { err.textContent = "Enter your work email."; return; }
-    btn.disabled = true; btn.textContent = "Checking…"; err.textContent = "";
-    const r = await trySignIn(who, pass, document.getElementById("remember").checked);
+    if (!API) { err.textContent = ERRORS.not_set_up; return; }
+    btn.disabled = true; btn.textContent = "Signing in…"; err.textContent = "";
+    const fail = await signIn(document.getElementById("email").value, document.getElementById("pw").value, document.getElementById("remember").checked);
     btn.disabled = false; btn.textContent = "Sign in";
-    if (r === "bad") err.textContent = "That password didn't work. Check it with your team lead.";
-    if (r === "nouser") err.textContent = "That email isn't on the team list. Check the spelling or ask your team lead to add you.";
-    if (r === "fetch") { err.textContent = "Couldn't load the tracker. Check your connection and try again."; blobPromise = null; }
-  });
-  document.getElementById("signout").addEventListener("click", () => {
-    [ls, ss].forEach(s => { s.del(PASS_KEY); s.del(WHO_KEY); });
-    snapshot = null; me = null; meUser = null;
-    document.getElementById("pw").value = "";
-    document.getElementById("app").hidden = true;
-    document.getElementById("login-view").hidden = false;
+    if (fail) err.textContent = errText(fail);
   });
 
+  // keep everyone's view current
+  setInterval(() => { if (!document.hidden && editing === null && adding === null) refresh(); }, 45000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+
   (async function boot() {
-    const pass = ss.get(PASS_KEY) || ls.get(PASS_KEY), who = ss.get(WHO_KEY) || ls.get(WHO_KEY);
-    if (pass && who) {
-      const r = await trySignIn(who, pass, !!ls.get(PASS_KEY));
-      if (r !== "ok") { ls.del(PASS_KEY); ss.del(PASS_KEY); }
+    if (!API) { document.getElementById("login-err").textContent = ERRORS.not_set_up; return; }
+    let saved = null; try { saved = JSON.parse(ss.get(CREDS_KEY) || ls.get(CREDS_KEY) || "null"); } catch (e) {}
+    if (saved && saved.email && saved.password) {
+      const fail = await signIn(saved.email, saved.password, !!ls.get(CREDS_KEY));
+      if (fail && fail.error !== "network") { ls.del(CREDS_KEY); ss.del(CREDS_KEY); }
     }
   })();
 })();
